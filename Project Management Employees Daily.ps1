@@ -168,12 +168,52 @@ foreach ( $manager in $employedManagerList ) {
                              Title    = $addManager.LookupValue
                              Email = $addManager.Email
                              eNumber  = $manager.managerENumber
+                }
+            }
+        }
 
-         }
+# check if ROLE_PROJECT_MGR membership might be needed and email as needed
 
-         }
-        
-}
+$addedArray | ForEach-Object {
+$addedUser = Get-ADUser -Filter "mail -eq '$($addedArray.Email)'" -Properties Manager
+$isMember = Get-ADPrincipalGroupMembership -Identity $addedUser | Where-Object { $_.Name -eq "ROLE_PROJECT_MGR" }
+
+
+If ( -not $isMember ) {
+
+$emailBody = @"
+
+<strong>Helpdesk</strong>, <br><br>
+
+$($_.Title) was added as a new project manager. We checked the <b>ROLE_PROJECT_MGR</b> group and they are not a member.<br><br>
+
+Please reach out to <b>$($addedUser.Manager.split(",")[0] -Replace "CN=","")</b> to make sure it is acceptable to add them to the <b>ROLE_PROJECT_MGR</b> security group.<br><br>
+
+If their manager says it is acceptable, please add them.<br><br>
+
+<span style="font-size: 10px"><strong>- A Lochgroup Automation - Please do not reply</strong></span>
+
+"@
+                $mailParams = @{
+                SmtpServer                 = 'smtp.azurecomm.net'
+                Port                       = '587'
+                UseSSL                     = $true
+                Credential                 = $Cred  
+                From                       = 'automate@lochgroup.com'
+                To                         = 'kevin.patenaude@lochgroup.com'
+                Subject                    = " New project manager added to Project Managers - $($_.Title)"
+                Body                       = $emailBody
+                BodyAsHtml                 = $true
+                BCC                        = "kevin.patenaude@lochgroup.com"
+                }
+                        
+                         ## Send the email   
+                         Send-MailMessage @mailParams  
+            } 
+        }
+
+
+## recycle process
 
 $removalArray = @()
 
@@ -200,7 +240,7 @@ forEach ( $indexObject in $cloudProjectManagers )  {
 
 ## Phase managers
 
-# recollect the project managers and inex them
+# recollect the project managers and index them
 $cloudProjectManagers = Get-PNPListItem "Project Managers"
 $cloudPMIndex = @{}
 $cloudProjectManagers | ForEach-Object { $cloudPMIndex[ $_.FieldValues.eNumber ] = $_ }
@@ -285,6 +325,31 @@ Total Removed: $($removalArray.count) <br>
                          Send-MailMessage @mailParams  
 
      }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
